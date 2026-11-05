@@ -82,7 +82,7 @@
 
         // 6. Geometry Parameters (Scale: 1 unit = 1 cm)
         const bottleRadiusIn = 6.425; // 12.85cm diameter -> 6.425cm radius
-        const wallThickness = 0.8;  // Adjusted wall thickness (e.g., 0.8cm)
+        const wallThickness = 0.8;  // Wall thickness set back to 0.8 cm
         const bottleRadiusOut = bottleRadiusIn + wallThickness;
         const holderHeight = 6.0;   // 6cm height
         
@@ -130,45 +130,43 @@
         );
         frontWall.position.set(0, holderHeight / 2, offsetZ + (cuboidY / 2) + (wallThickness / 2));
         
-        // 2. Back Wall (Profile matching the outer bottle boundary safely)
+        // 2. Back Wall (Seamlessly curving and intersecting into the bottle ring's outer radius)
         const wallHalfW = outerWidth / 2;
         const backWallShape = new THREE.Shape();
         const arcSteps = 64;
         
-        // Start from left outer edge of the back wall
-        backWallShape.moveTo(-wallHalfW, -(offsetZ - (cuboidY / 2)));
-        
-        // Trace along the bottle's outer radius arc where they intersect
         for (let i = 0; i <= arcSteps; i++) {
             const x = -wallHalfW + (2 * wallHalfW * i) / arcSteps;
-            // Ensure x is within the valid domain of the circle
             const clampedX = Math.max(-bottleRadiusOut, Math.min(bottleRadiusOut, x));
             const zSq = (bottleRadiusOut * bottleRadiusOut) - (clampedX * clampedX);
             const z = zSq > 0 ? Math.sqrt(zSq) : 0;
-            backWallShape.lineTo(x, -z);
+            if (i === 0) backWallShape.moveTo(x, -z);
+            else backWallShape.lineTo(x, -z);
         }
         
-        // Complete the back wall outer boundary rectangle
-        backWallShape.lineTo(wallHalfW, -(offsetZ - (cuboidY / 2) - wallThickness));
-        backWallShape.lineTo(-wallHalfW, -(offsetZ - (cuboidY / 2) - wallThickness));
+        const backWallOuterZ = offsetZ - (cuboidY / 2);
+        backWallShape.lineTo(wallHalfW, -backWallOuterZ);
+        backWallShape.lineTo(wallHalfW, -(backWallOuterZ - wallThickness));
+        backWallShape.lineTo(-wallHalfW, -(backWallOuterZ - wallThickness));
+        backWallShape.lineTo(-wallHalfW, -backWallOuterZ);
         backWallShape.closePath();
 
         const backWallGeometry = new THREE.ExtrudeGeometry(backWallShape, { depth: holderHeight, bevelEnabled: false });
         backWallGeometry.rotateX(-Math.PI / 2);
         const backWall = new THREE.Mesh(backWallGeometry, holderMaterial);
 
-        // 3. Left & Right Walls (Strictly bounded by cuboidX inner gap)
+        // 3. Left & Right Walls
         const leftWall = new THREE.Mesh(
-            new THREE.BoxGeometry(wallThickness, holderHeight, cuboidY + wallThickness), 
+            new THREE.BoxGeometry(wallThickness, holderHeight, cuboidY), 
             holderMaterial
         );
-        leftWall.position.set(-(cuboidX / 2) - (wallThickness / 2), holderHeight / 2, offsetZ - (wallThickness / 2));
+        leftWall.position.set(-(cuboidX / 2) - (wallThickness / 2), holderHeight / 2, offsetZ);
 
         const rightWall = new THREE.Mesh(
-            new THREE.BoxGeometry(wallThickness, holderHeight, cuboidY + wallThickness), 
+            new THREE.BoxGeometry(wallThickness, holderHeight, cuboidY), 
             holderMaterial
         );
-        rightWall.position.set((cuboidX / 2) + (wallThickness / 2), holderHeight / 2, offsetZ - (wallThickness / 2));
+        rightWall.position.set((cuboidX / 2) + (wallThickness / 2), holderHeight / 2, offsetZ);
 
         // 4. Solid Base Floor
         const bottomBase = new THREE.Mesh(
