@@ -65,8 +65,15 @@
 
         camera.position.set(25, 25, 35);
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
+        const renderer = new THREE.WebGLRenderer({
+            antialias: true
+        });
+
+        renderer.setSize(
+            window.innerWidth,
+            window.innerHeight
+        );
+
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -90,19 +97,31 @@
         // 3. LIGHTING
         // ==========================================
 
-        scene.add(
-            new THREE.AmbientLight(0xffffff, 0.5)
+        const ambientLight = new THREE.AmbientLight(
+            0xffffff,
+            0.5
         );
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(
+            0xffffff,
+            0.8
+        );
+
         dirLight.position.set(20, 40, 20);
         dirLight.castShadow = true;
+
         dirLight.shadow.mapSize.width = 2048;
         dirLight.shadow.mapSize.height = 2048;
 
         scene.add(dirLight);
 
-        const fillLight = new THREE.DirectionalLight(0x88bbff, 0.3);
+        const fillLight = new THREE.DirectionalLight(
+            0x88bbff,
+            0.3
+        );
+
         fillLight.position.set(-20, -10, -20);
 
         scene.add(fillLight);
@@ -120,23 +139,25 @@
         );
 
         grid.position.y = -3.5;
+
         scene.add(grid);
 
 
         // ==========================================
         // 5. GEOMETRY PARAMETERS
-        // Scale: 1 Three.js unit = 1 cm
+        // Scale: 1 unit = 1 cm
         // ==========================================
 
         // Bottle dimensions
         const bottleRadiusIn = 6.425;
         const wallThickness = 0.8;
-        const bottleRadiusOut = bottleRadiusIn + wallThickness;
+        const bottleRadiusOut =
+            bottleRadiusIn + wallThickness;
 
-        // Holder dimensions
+        // Holder height
         const holderHeight = 6.0;
 
-        // Cuboid INTERNAL dimensions
+        // Cuboid internal dimensions
         const cuboidX = 7.3;
         const cuboidY = 5.0;
 
@@ -148,11 +169,12 @@
         // 6. MATERIAL
         // ==========================================
 
-        const holderMaterial = new THREE.MeshStandardMaterial({
-            color: 0x2196f3,
-            roughness: 0.3,
-            metalness: 0.1
-        });
+        const holderMaterial =
+            new THREE.MeshStandardMaterial({
+                color: 0x2196f3,
+                roughness: 0.3,
+                metalness: 0.1
+            });
 
         const holderGroup = new THREE.Group();
 
@@ -185,14 +207,15 @@
 
         bottleShape.holes.push(bottleHole);
 
-        const bottleGeometry = new THREE.ExtrudeGeometry(
-            bottleShape,
-            {
-                depth: holderHeight,
-                bevelEnabled: false,
-                curveSegments: 64
-            }
-        );
+        const bottleGeometry =
+            new THREE.ExtrudeGeometry(
+                bottleShape,
+                {
+                    depth: holderHeight,
+                    bevelEnabled: false,
+                    curveSegments: 64
+                }
+            );
 
         bottleGeometry.rotateX(-Math.PI / 2);
 
@@ -209,10 +232,9 @@
 
         // ==========================================
         // 8. CUBOID HOUSING
-        // Internal dimensions remain constant
-        // regardless of wall thickness.
         // ==========================================
 
+        // Distance between bottle center and cuboid center
         const offsetZ =
             bottleRadiusOut +
             (cuboidY / 2) +
@@ -221,8 +243,11 @@
         const cuboidGroup = new THREE.Group();
 
         // Outer dimensions
-        const outerWidth = cuboidX + (2 * wallThickness);
-        const outerDepth = cuboidY + (2 * wallThickness);
+        const outerWidth =
+            cuboidX + (2 * wallThickness);
+
+        const outerDepth =
+            cuboidY + (2 * wallThickness);
 
 
         // ------------------------------------------
@@ -246,7 +271,7 @@
 
 
         // ------------------------------------------
-        // BACK WALL
+        // BACK WALL / CONNECTING WALL
         // Curved profile follows the bottle ring.
         // ------------------------------------------
 
@@ -256,7 +281,7 @@
 
         const arcSteps = 128;
 
-        // Left-to-right curved boundary
+        // Create curved boundary
         for (let i = 0; i <= arcSteps; i++) {
 
             const x =
@@ -266,11 +291,11 @@
             const z = Math.sqrt(
                 Math.max(
                     0,
-                    bottleRadiusOut * bottleRadiusOut - x * x
+                    bottleRadiusOut * bottleRadiusOut -
+                    x * x
                 )
             );
 
-            // Shape Y maps to world -Z after rotation
             if (i === 0) {
                 backWallShape.moveTo(x, -z);
             } else {
@@ -278,9 +303,12 @@
             }
         }
 
-        // Back edge of the wall
+        // FIX:
+        // Align connecting wall with the side walls.
+        // Do not subtract wallThickness here.
+
         const backEdgeZ =
-            -(offsetZ - cuboidY / 2 - wallThickness);
+            -(offsetZ - cuboidY / 2);
 
         backWallShape.lineTo(
             wallHalfW,
@@ -294,14 +322,15 @@
 
         backWallShape.closePath();
 
-        const backWallGeometry = new THREE.ExtrudeGeometry(
-            backWallShape,
-            {
-                depth: holderHeight,
-                bevelEnabled: false,
-                curveSegments: 64
-            }
-        );
+        const backWallGeometry =
+            new THREE.ExtrudeGeometry(
+                backWallShape,
+                {
+                    depth: holderHeight,
+                    bevelEnabled: false,
+                    curveSegments: 64
+                }
+            );
 
         backWallGeometry.rotateX(-Math.PI / 2);
 
@@ -371,7 +400,10 @@
         );
 
 
-        // Add all cuboid components
+        // ------------------------------------------
+        // ADD CUBOID COMPONENTS
+        // ------------------------------------------
+
         cuboidGroup.add(
             frontWall,
             backWall,
@@ -380,8 +412,6 @@
             bottomBase
         );
 
-
-        // Enable shadows
         cuboidGroup.traverse(child => {
 
             if (child.isMesh) {
@@ -423,6 +453,7 @@
 
         exportBtn.onclick = () => {
 
+            // Clone model
             const exportGroup = holderGroup.clone();
 
             // Reset vertical positioning
@@ -436,6 +467,7 @@
 
             exportGroup.updateMatrixWorld(true);
 
+            // Generate STL
             const stl = new THREE.STLExporter().parse(
                 exportGroup,
                 { binary: true }
@@ -446,14 +478,20 @@
                 { type: 'application/octet-stream' }
             );
 
+            const url = URL.createObjectURL(blob);
+
             const a = document.createElement('a');
 
-            a.href = URL.createObjectURL(blob);
+            a.href = url;
             a.download = 'holder.stl';
 
+            document.body.appendChild(a);
             a.click();
+            document.body.removeChild(a);
 
-            URL.revokeObjectURL(a.href);
+            setTimeout(() => {
+                URL.revokeObjectURL(url);
+            }, 1000);
 
         };
 
