@@ -81,13 +81,13 @@
         scene.add(grid);
 
         // 6. Geometry Parameters (Scale: 1 unit = 1 cm)
-        const bottleRadiusIn = 6.425; // 12.85cm diameter -> 6.425cm radius
-        const wallThickness = 0.8;  // Wall thickness set back to 0.8 cm
+        const bottleRadiusIn = 6.425; // 12.85cm diameter -> 6.25cm radius
+        const wallThickness = 0.8;  // 8mm wall thickness
         const bottleRadiusOut = bottleRadiusIn + wallThickness;
         const holderHeight = 6.0;   // 6cm height
         
-        const cuboidX = 7.3;        // 7.3cm inner width
-        const cuboidY = 5.0;        // 5cm inner depth
+        const cuboidX = 7.3;        // 7.3cm width
+        const cuboidY = 5.0;        // 5cm depth
         const baseThickness = 0.5;  // 5mm base
 
         const holderGroup = new THREE.Group();
@@ -118,62 +118,44 @@
         holderGroup.add(bottleMesh);
 
         // --- B. Create Cuboid Housing (with Base) ---
-        const offsetZ = bottleRadiusOut + (cuboidY / 2);
+        const offsetZ = bottleRadiusOut + (cuboidY / 2) + wallThickness;
 
         const cuboidGroup = new THREE.Group();
-        const outerWidth = cuboidX + (2 * wallThickness);
 
-        // 1. Front Wall
-        const frontWall = new THREE.Mesh(
-            new THREE.BoxGeometry(outerWidth, holderHeight, wallThickness), 
-            holderMaterial
-        );
-        frontWall.position.set(0, holderHeight / 2, offsetZ + (cuboidY / 2) + (wallThickness / 2));
+        // Walls & Base for Cuboid
+        const frontWall = new THREE.Mesh(new THREE.BoxGeometry(cuboidX + (2*wallThickness), holderHeight, wallThickness), holderMaterial);
+        frontWall.position.set(0, holderHeight/2, offsetZ + cuboidY/2 + wallThickness/2);
         
-        // 2. Back Wall (Seamlessly curving and intersecting into the bottle ring's outer radius)
-        const wallHalfW = outerWidth / 2;
+        // Back wall = original box minus the bottle cylinder (outer radius), done as a 2D profile.
+        // Box footprint: x in [-wallHalfW, wallHalfW], z in [wallZ0, wallZ1]
+        const wallHalfW = (cuboidX + 2*wallThickness) / 2;
+        const wallDepth = wallThickness * 5;
+        const wallCenterZ = offsetZ - cuboidY/2 - wallThickness/2 - 1;
+        const wallZ1 = wallCenterZ + wallDepth/2;
+        // Wall's front edge is replaced by the bottle's circular arc (z = sqrt(R^2 - x^2))
         const backWallShape = new THREE.Shape();
         const arcSteps = 64;
-        
         for (let i = 0; i <= arcSteps; i++) {
             const x = -wallHalfW + (2 * wallHalfW * i) / arcSteps;
-            const clampedX = Math.max(-bottleRadiusOut, Math.min(bottleRadiusOut, x));
-            const zSq = (bottleRadiusOut * bottleRadiusOut) - (clampedX * clampedX);
-            const z = zSq > 0 ? Math.sqrt(zSq) : 0;
-            if (i === 0) backWallShape.moveTo(x, -z);
-            else backWallShape.lineTo(x, -z);
+            const z = Math.sqrt(bottleRadiusOut * bottleRadiusOut - x * x);
+            // shape y maps to world -z after rotateX(-90deg)
+            if (i === 0) backWallShape.moveTo(x, -z); else backWallShape.lineTo(x, -z);
         }
-        
-        const backWallOuterZ = offsetZ - (cuboidY / 2);
-        backWallShape.lineTo(wallHalfW, -backWallOuterZ);
-        backWallShape.lineTo(wallHalfW, -(backWallOuterZ - wallThickness));
-        backWallShape.lineTo(-wallHalfW, -(backWallOuterZ - wallThickness));
-        backWallShape.lineTo(-wallHalfW, -backWallOuterZ);
+        backWallShape.lineTo(wallHalfW, -wallZ1);
+        backWallShape.lineTo(-wallHalfW, -wallZ1);
         backWallShape.closePath();
-
         const backWallGeometry = new THREE.ExtrudeGeometry(backWallShape, { depth: holderHeight, bevelEnabled: false });
         backWallGeometry.rotateX(-Math.PI / 2);
         const backWall = new THREE.Mesh(backWallGeometry, holderMaterial);
 
-        // 3. Left & Right Walls
-        const leftWall = new THREE.Mesh(
-            new THREE.BoxGeometry(wallThickness, holderHeight, cuboidY), 
-            holderMaterial
-        );
-        leftWall.position.set(-(cuboidX / 2) - (wallThickness / 2), holderHeight / 2, offsetZ);
+        const leftWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, holderHeight, cuboidY), holderMaterial);
+        leftWall.position.set(-cuboidX/2 - wallThickness/2, holderHeight/2, offsetZ);
 
-        const rightWall = new THREE.Mesh(
-            new THREE.BoxGeometry(wallThickness, holderHeight, cuboidY), 
-            holderMaterial
-        );
-        rightWall.position.set((cuboidX / 2) + (wallThickness / 2), holderHeight / 2, offsetZ);
+        const rightWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, holderHeight, cuboidY), holderMaterial);
+        rightWall.position.set(cuboidX/2 + wallThickness/2, holderHeight/2, offsetZ);
 
-        // 4. Solid Base Floor
-        const bottomBase = new THREE.Mesh(
-            new THREE.BoxGeometry(cuboidX, baseThickness, cuboidY), 
-            holderMaterial
-        );
-        bottomBase.position.set(0, baseThickness / 2, offsetZ);
+        const bottomBase = new THREE.Mesh(new THREE.BoxGeometry(cuboidX, baseThickness, cuboidY), holderMaterial);
+        bottomBase.position.set(0, baseThickness/2, offsetZ);
 
         cuboidGroup.add(frontWall, backWall, leftWall, rightWall, bottomBase);
         
@@ -197,8 +179,9 @@
         document.body.appendChild(exportBtn);
 
         exportBtn.onclick = () => {
+            // Clone so the on-screen model isn't changed
             const exportGroup = holderGroup.clone();
-            exportGroup.position.set(0, 0, 0);      
+            exportGroup.position.set(0, 0, 0);      // drop centering offset, base sits at y=0
             exportGroup.scale.setScalar(10);        // 1 unit = 1 cm here, slicers expect mm
             exportGroup.rotation.x = Math.PI / 2;   // Three.js is Y-up, slicers are Z-up
             exportGroup.updateMatrixWorld(true);
@@ -229,3 +212,6 @@
     </script>
 </body>
 </html>
+
+
+I update the wall thickness from 0.5 to 0.8 and appears the cuboid inner dimension is no longer 7.3 x 5, the width is somehow shrinking, what should I do?
